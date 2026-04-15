@@ -38,6 +38,10 @@ func New(host string) *Scanner {
 
 // Scan performs a TCP scan over the configured port range and returns open ports.
 func (s *Scanner) Scan() ([]Port, error) {
+	if err := s.validate(); err != nil {
+		return nil, err
+	}
+
 	var open []Port
 
 	for port := s.MinPort; port <= s.MaxPort; port++ {
@@ -55,4 +59,18 @@ func (s *Scanner) Scan() ([]Port, error) {
 	}
 
 	return open, nil
+}
+
+// validate checks that the Scanner's configuration is valid before scanning.
+func (s *Scanner) validate() error {
+	if s.MinPort < 1 || s.MaxPort > 65535 {
+		return fmt.Errorf("port range must be between 1 and 65535, got %d-%d", s.MinPort, s.MaxPort)
+	}
+	if s.MinPort > s.MaxPort {
+		return fmt.Errorf("MinPort (%d) must not be greater than MaxPort (%d)", s.MinPort, s.MaxPort)
+	}
+	if s.Host == "" {
+		return fmt.Errorf("host must not be empty")
+	}
+	return nil
 }
