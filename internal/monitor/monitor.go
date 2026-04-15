@@ -17,7 +17,7 @@ type Change struct {
 type Monitor struct {
 	scanner  *scanner.Scanner
 	interval time.Duration
-	previous map[string]bool
+	previous map[string]scanner.Port
 	Changes  chan Change
 	stop     chan struct{}
 }
@@ -27,7 +27,7 @@ func New(s *scanner.Scanner, interval time.Duration) *Monitor {
 	return &Monitor{
 		scanner:  s,
 		interval: interval,
-		previous: make(map[string]bool),
+		previous: make(map[string]scanner.Port),
 		Changes:  make(chan Change, 32),
 		stop:     make(chan struct{}),
 	}
@@ -70,20 +70,21 @@ func (m *Monitor) poll(baseline bool) error {
 		return err
 	}
 
-	current := make(map[string]bool, len(ports))
+	current := make(map[string]scanner.Port, len(ports))
 	for _, p := range ports {
 		key := p.String()
-		current[key] = true
-		if !baseline && !m.previous[key] {
-			m.Changes <- Change{Port: p, Opened: true}
+		current[key] = p
+		if !baseline {
+			if _, seen := m.previous[key]; !seen {
+				m.Changes <- Change{Port: p, Opened: true}
+			}
 		}
 	}
 
 	if !baseline {
-		for key := range m.previous {
-			if !current[key] {
-				// Reconstruct a minimal Port for the closed event
-				m.Changes <- Change{Port: scanner.Port{Address: key}, Opened: false}
+		for key, p := range m.previous {
+			if _, stillOpen := current[key]; !stillOpen {
+				m.Changes <- Change{Port: p, Opened: false}
 			}
 		}
 	}
