@@ -2,59 +2,71 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"time"
 )
 
-// Config holds the runtime configuration for portwatch.
+// Config holds the full portwatch configuration.
 type Config struct {
-	// Ports to monitor. If empty, all ports are monitored.
-	Ports []uint16 `json:"ports"`
-
-	// Interval between scans.
-	Interval time.Duration `json:"interval"`
-
-	// Host to scan (defaults to localhost).
-	Host string `json:"host"`
-
-	// AlertCommand is an optional shell command to run on changes.
-	AlertCommand string `json:"alert_command"`
+	Ports        []int         `json:"ports"`
+	Protocols    []string      `json:"protocols"`
+	Interval     time.Duration `json:"interval"`
+	AlertLog     string        `json:"alert_log"`
+	SnapshotDir  string        `json:"snapshot_dir"`
+	RetainDays   int           `json:"retain_days"`
 }
 
 // DefaultConfig returns a Config populated with sensible defaults.
-func DefaultConfig() *Config {
-	return &Config{
-		Ports:    []uint16{},
-		Interval: 5 * time.Second,
-		Host:     "127.0.0.1",
+func DefaultConfig() Config {
+	return Config{
+		Ports:       []int{},
+		Protocols:   []string{"tcp"},
+		Interval:    30 * time.Second,
+		AlertLog:    "",
+		SnapshotDir: ".portwatch/snapshots",
+		RetainDays:  30,
 	}
 }
 
-// Load reads a JSON config file from path and returns a Config.
-// Missing fields fall back to defaults.
-func Load(path string) (*Config, error) {
+// rawConfig mirrors Config but uses a plain int for JSON duration parsing.
+type rawConfig struct {
+	Ports       []int    `json:"ports"`
+	Protocols   []string `json:"protocols"`
+	IntervalSec int      `json:"interval_seconds"`
+	AlertLog    string   `json:"alert_log"`
+	SnapshotDir string   `json:"snapshot_dir"`
+	RetainDays  int      `json:"retain_days"`
+}
+
+// Load reads a JSON config file and merges it over the defaults.
+func Load(path string) (Config, error) {
 	cfg := DefaultConfig()
-
-	f, err := os.Open(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return cfg, nil
-		}
-		return nil, err
+		return cfg, fmt.Errorf("config: read %s: %w", path, err)
 	}
-	defer f.Close()
-
-	dec := json.NewDecoder(f)
-	if err := dec.Decode(cfg); err != nil {
-		return nil, err
+	var raw rawConfig
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return cfg, fmt.Errorf("config: parse %s: %w", path, err)
 	}
-
-	if cfg.Host == "" {
-		cfg.Host = "127.0.0.1"
+	if len(raw.Ports) > 0 {
+		cfg.Ports = raw.Ports
 	}
-	if cfg.Interval <= 0 {
-		cfg.Interval = 5 * time.Second
+	if len(raw.Protocols) > 0 {
+		cfg.Protocols = raw.Protocols
 	}
-
+	if raw.IntervalSec > 0 {
+		cfg.Interval = time.Duration(raw.IntervalSec) * time.Second
+	}
+	if raw.AlertLog != "" {
+		cfg.AlertLog = raw.AlertLog
+	}
+	if raw.SnapshotDir != "" {
+		cfg.SnapshotDir = raw.SnapshotDir
+	}
+	if raw.RetainDays > 0 {
+		cfg.RetainDays = raw.RetainDays
+	}
 	return cfg, nil
 }
