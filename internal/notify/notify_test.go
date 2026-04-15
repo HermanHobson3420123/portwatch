@@ -85,3 +85,24 @@ func TestWatchConsumesChannel(t *testing.T) {
 		}
 	}
 }
+
+func TestSendMessageIncludedInOutput(t *testing.T) {
+	var buf bytes.Buffer
+	n, err := notify.New(&buf)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	const wantMsg = "unexpected service detected"
+	e := notify.Event{
+		Level:    notify.LevelAlert,
+		Port:     9090,
+		Protocol: "udp",
+		Message:  wantMsg,
+	}
+	if err := n.Send(e); err != nil {
+		t.Fatalf("Send: %v", err)
+	}
+	if !strings.Contains(buf.String(), wantMsg) {
+		t.Errorf("expected message %q in output, got: %q", wantMsg, buf.String())
+	}
+}
