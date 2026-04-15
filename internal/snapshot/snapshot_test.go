@@ -85,3 +85,15 @@ func TestDiffNoChange(t *testing.T) {
 		t.Errorf("expected no diff, got opened=%v closed=%v", opened, closed)
 	}
 }
+
+func TestDiffBothOpenedAndClosed(t *testing.T) {
+	prev := makePorts(80, 443, 8080)
+	curr := makePorts(80, 443, 9090)
+	opened, closed := snapshot.Diff(prev, curr)
+	if len(opened) != 1 || opened[0].Number != 9090 {
+		t.Errorf("expected port 9090 opened, got %v", opened)
+	}
+	if len(closed) != 1 || closed[0].Number != 8080 {
+		t.Errorf("expected port 8080 closed, got %v", closed)
+	}
+}
