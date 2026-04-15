@@ -29,6 +29,26 @@ func DefaultConfig() Config {
 	}
 }
 
+// Validate checks that the configuration values are within acceptable ranges
+// and returns an error describing the first problem found.
+func (c Config) Validate() error {
+	if len(c.Protocols) == 0 {
+		return fmt.Errorf("config: at least one protocol must be specified")
+	}
+	for _, p := range c.Protocols {
+		if p != "tcp" && p != "udp" {
+			return fmt.Errorf("config: unsupported protocol %q (must be \"tcp\" or \"udp\")", p)
+		}
+	}
+	if c.Interval < time.Second {
+		return fmt.Errorf("config: interval must be at least 1 second, got %s", c.Interval)
+	}
+	if c.RetainDays < 1 {
+		return fmt.Errorf("config: retain_days must be at least 1, got %d", c.RetainDays)
+	}
+	return nil
+}
+
 // rawConfig mirrors Config but uses a plain int for JSON duration parsing.
 type rawConfig struct {
 	Ports       []int    `json:"ports"`
@@ -67,6 +87,9 @@ func Load(path string) (Config, error) {
 	}
 	if raw.RetainDays > 0 {
 		cfg.RetainDays = raw.RetainDays
+	}
+	if err := cfg.Validate(); err != nil {
+		return cfg, err
 	}
 	return cfg, nil
 }
