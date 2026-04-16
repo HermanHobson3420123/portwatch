@@ -51,3 +51,11 @@ func (p *Pipeline) Run(ctx context.Context) {
 		}
 	}
 }
+
+// RunAndClose runs the pipeline and closes the debouncer when finished.
+// This is a convenience wrapper around Run for callers that own the
+// pipeline lifecycle and want the output channel closed on exit.
+func (p *Pipeline) RunAndClose(ctx context.Context) {
+	p.Run(ctx)
+	p.d.Close()
+}
