@@ -71,3 +71,34 @@ func TestPipelineStopsOnClosedInput(t *testing.T) {
 		t.Fatal("timeout waiting for pipeline to stop")
 	}
 }
+
+func TestPipelineCountsMultipleEvents(t *testing.T) {
+	c := New()
+	in := make(chan Event, 6)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	out := NewPipeline(ctx, c, in)
+
+	in <- makeEvent(true, 80)
+	in <- makeEvent(true, 8080)
+	in <- makeEvent(true, 443)
+	in <- makeEvent(false, 22)
+	in <- makeEvent(false, 25)
+
+	for i := 0; i < 5; i++ {
+		select {
+		case <-out:
+		case <-time.After(time.Second):
+			t.Fatal("timeout waiting for event")
+		}
+	}
+
+	s := c.Snapshot()
+	if s.OpenedTotal != 3 {
+		t.Fatalf("expected 3 opened, got %d", s.OpenedTotal)
+	}
+	if s.ClosedTotal != 2 {
+		t.Fatalf("expected 2 closed, got %d", s.ClosedTotal)
+	}
+}
