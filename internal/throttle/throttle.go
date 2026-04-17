@@ -61,3 +61,19 @@ func (t *Throttle) Reset() {
 	defer t.mu.Unlock()
 	t.lastTick = time.Time{}
 }
+
+// Remaining returns how much time must still elapse before the next tick is
+// allowed. Returns zero if a tick is allowed immediately.
+func (t *Throttle) Remaining() time.Duration {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if t.minGap <= 0 || t.lastTick.IsZero() {
+		return 0
+	}
+	elapsed := t.now().Sub(t.lastTick)
+	if elapsed >= t.minGap {
+		return 0
+	}
+	return t.minGap - elapsed
+}
