@@ -8,6 +8,7 @@ import (
 )
 
 // PrintExpired writes a human-readable summary of expired entries to w.
+// Entries are sorted by port number before printing.
 func PrintExpired(w io.Writer, entries []Entry, now time.Time) {
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[i].Port.Number < entries[j].Port.Number
@@ -25,4 +26,11 @@ func Summary(entries []Entry) string {
 		return "no expired ports"
 	}
 	return fmt.Sprintf("%d port(s) expired", len(entries))
+}
+
+// PrintSummaryLine writes the summary line produced by Summary to w,
+// followed by a newline. It returns any write error encountered.
+func PrintSummaryLine(w io.Writer, entries []Entry) error {
+	_, err := fmt.Fprintln(w, Summary(entries))
+	return err
 }
