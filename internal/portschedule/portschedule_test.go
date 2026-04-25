@@ -63,3 +63,11 @@ func TestActiveEntryBoundary(t *testing.T) {
 		t.Error("expected entry inactive at end boundary")
 	}
 }
+
+func TestActiveNowEmpty(t *testing.T) {
+	s := New()
+	active := s.ActiveNow(base)
+	if len(active) != 0 {
+		t.Errorf("expected no active entries on empty schedule, got %d", len(active))
+	}
+}
